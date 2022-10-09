@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+# local credentials
+src/secrets.h
