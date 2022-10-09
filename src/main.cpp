@@ -7,7 +7,7 @@
 #define NOTIFY_PIN 3
 #define LED_PIN 2
 
-const char* MQTT_CLIENT_ID = "FASTBUTTON01";
+const char* MQTT_CLIENT_ID = "FASTBUTTON02";
 const uint16_t MAGIC_NUM = 0x1AC2;
 const char* MQTT_ACTION_TOPIC = "wled/buero1";
 const char* MQTT_ACTION_VALUE = "T";
