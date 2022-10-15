@@ -26,8 +26,10 @@
 #include <ESP8266WiFi.h>
 
 /* Our data structure for WIFI settings */
-const uint16_t MAGIC_NUM = 0x1AC4;
-struct WIFI_SETTINGS_T { // size: 640 bytes
+#define SETTINGS_MAGIC_NUM 0x1AC4
+#define SETTINGS_VERSION 2
+
+struct WIFI_SETTINGS_T { // size: 644 bytes
   uint16_t magic;
   uint32_t ip_address;
   uint32_t ip_gateway;
@@ -47,7 +49,11 @@ struct WIFI_SETTINGS_T { // size: 640 bytes
   char mqtt_topic[100];
   char mqtt_value[100];
   char mqtt_homeassistant_topic[100];
-} ;
+  uint8_t version;
+  char filler[380]; // not used
+};
+
+
 
 void save_settings_to_flash(WIFI_SETTINGS_T *data);
 bool get_settings_from_flash(WIFI_SETTINGS_T *data);
