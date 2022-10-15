@@ -9,10 +9,9 @@
 #define NOTIFY_PIN 3
 #define LED_PIN 2
 
-const char* MQTT_CLIENT_ID = "FASTBUTTON02";
-const uint16_t MAGIC_NUM = 0x1AC4;
-const char* MQTT_ACTION_TOPIC = "wled/buero1";
-const char* MQTT_ACTION_VALUE = "T";
+//const char* MQTT_CLIENT_ID = "FASTBUTTON02";
+//const char* MQTT_ACTION_TOPIC = "wled/buero1";
+//const char* MQTT_ACTION_VALUE = "T";
 
 //#define DEBUG_MODE
 //#define DEBUG_AUTODISCOVER
@@ -24,6 +23,7 @@ const char* MQTT_ACTION_VALUE = "T";
 #endif
 
 /* Our data structure for WIFI settings */
+const uint16_t MAGIC_NUM = 0x1AC4;
 struct WIFI_SETTINGS_T { // size: 640 bytes
   uint16_t magic;
   uint32_t ip_address;
@@ -49,22 +49,20 @@ bool g_wifi_mqtt_working;
 unsigned long g_start_millis;
 bool g_mqtt_connected;
 PubSubClient g_mqtt_client;
-
+WiFiClient g_wclient;
 
 // functions that follow
 bool wifi_try_slow_connect(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w);
 bool wifi_slow_connect(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w);
 bool wifi_try_fast_connect(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w);
-//bool preconnect_ip(WiFiClient *wclient, IPAddress ip, int port);
 void save_settings_to_flash(WIFI_SETTINGS_T *data);
 bool get_settings_from_flash(WIFI_SETTINGS_T *data);
-void build_settings(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w);
+void default_settings(WIFI_SETTINGS_T *data);
+void build_settings_from_wifi(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w);
 void set_settings_ap(WIFI_SETTINGS_T *data, char *ssid, char *auth);
 void show_wifi_info(ESP8266WiFiClass *w);
 void show_settings(WIFI_SETTINGS_T *data);
 void countdown(int secs);
-//bool publish_mqtt(WiFiClient *wclient, WIFI_SETTINGS_T *data, 
-//    char *topic, char *value, bool includestate, bool autodiscover, bool includenetwork);
 bool mqtt_connect_server(WiFiClient *wclient, WIFI_SETTINGS_T *data);
 bool mqtt_send_topic(char *topic, char *value);
 bool mqtt_send_autodiscover(WIFI_SETTINGS_T *data);
@@ -102,6 +100,7 @@ void setup() {
 
   DEBUG_LOG("\n## WIFI:");
   if (!get_settings_from_flash(&g_wifi_settings)) {
+    default_settings(&g_wifi_settings);
     g_wifi_mqtt_working = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
     autodiscover_mqtt = true;
   } else {
@@ -123,11 +122,10 @@ void setup() {
 
   DEBUG_LOG("\n## MQTT:");
   if (g_wifi_mqtt_working) {
-    WiFiClient wclient;
     #ifdef DEBUG_MODE
     show_wifi_info(&WiFi);
     #endif
-    if (!mqtt_connect_server(&wclient, &g_wifi_settings)) {
+    if (!mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
       DEBUG_LOG("mqtt_connect_server() FAILED");
       g_wifi_mqtt_working = false;
     } else {
@@ -179,8 +177,7 @@ void loop() {
   if (g_mqtt_connected) g_mqtt_client.disconnect();
   bool res = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
   if (res) {
-    WiFiClient wclient;
-    if (mqtt_connect_server(&wclient, &g_wifi_settings)) {
+    if (mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
       mqtt_send_network_info(&WiFi, &g_wifi_settings);
       mqtt_send_autodiscover(&g_wifi_settings);
     }
@@ -230,7 +227,7 @@ bool wifi_try_slow_connect(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w) {
     return false;
   }
 
-  build_settings(data, w);
+  build_settings_from_wifi(data, w);
   save_settings_to_flash(data);
   #ifdef DEBUG_MODE
   show_settings(data);
@@ -256,18 +253,6 @@ bool wifi_try_fast_connect(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w) {
   while ((w->status() != WL_CONNECTED) && (millis()<timeout)) { delay(5); }
   // should be good now, or timed out
   return (w->status() == WL_CONNECTED);
-}
-
-/* Start a TCP connection to the given IP address & port,
- * this speeds things up for the MQTT client
- */
-bool x_preconnect_ip(WiFiClient *wclient, IPAddress ip, int port) {
-  DEBUG_LOG("preconnect_ip()");
-
-  #define PRECONNECT_TIMEOUT 5000
-  uint32_t timeout = millis() + PRECONNECT_TIMEOUT;
-  while ((!wclient->connect(ip, port)) && (millis()<timeout)) { delay(50); }
-  return (wclient->connected());
 }
 
 /* Save & restore settings from Flash ------------------------------ */
@@ -311,41 +296,58 @@ bool get_settings_from_flash(WIFI_SETTINGS_T *data) {
   return (data->magic == MAGIC_NUM);
 }
 
+/* Creates default settings structure
+ */
+void default_settings(WIFI_SETTINGS_T *data) {
+  DEBUG_LOG("default_settings()");
+
+  // main settings
+  memset(data, 0, sizeof(*data));
+  data->magic = MAGIC_NUM;
+  strncpy(data->mqtt_host_str, "homeassistant.local", sizeof(data->mqtt_host_str));
+  data->mqtt_host_port = 1883;
+  strncpy(data->mqtt_user, "username", sizeof(data->mqtt_user));
+  strncpy(data->mqtt_auth, "password", sizeof(data->mqtt_auth));
+  strncpy(data->mqtt_client_id, "FASTBUTTON", sizeof(data->mqtt_client_id));
+  strncpy(data->mqtt_topic, "wled/lights", sizeof(data->mqtt_topic));
+  strncpy(data->mqtt_value, "T", sizeof(data->mqtt_value));
+}
+
 /* Stores settings from global WiFi object to linked data
  * structure, fetches IP address of MQTT server.
  */
-void build_settings(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w) {
-  DEBUG_LOG("build_settings()");
+void build_settings_from_wifi(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w) {
+  DEBUG_LOG("build_settings_from_wifi()");
 
   // main settings
-  data->magic = MAGIC_NUM;
   data->ip_address = w->localIP();
   data->ip_gateway = w->gatewayIP();
   data->ip_mask = w->subnetMask();
   data->ip_dns1 = w->dnsIP(0);
   data->ip_dns2 = w->dnsIP(1);
-  strncpy(data->wifi_ssid, WIFI_SSID, 50);
-  strncpy(data->wifi_auth, WIFI_AUTH, 50);
+  strncpy(data->wifi_ssid, WIFI_SSID, sizeof(data->wifi_ssid));
+  strncpy(data->wifi_auth, WIFI_AUTH, sizeof(data->wifi_auth));
   memcpy(data->wifi_bssid, w->BSSID(), 6);
   data->wifi_channel = w->channel();
   // look up IP for MQTT server
-  strncpy(data->mqtt_host_str, MQTT_SERVER, 50);
   IPAddress mqtt_ip;
-  int err = w->hostByName(MQTT_SERVER, mqtt_ip);
+  int err = w->hostByName(data->mqtt_host_str, mqtt_ip);
   if (err==0) { 
     data->mqtt_host_ip = 0;
     #ifdef DEBUG_MODE
     Serial.print(" ** Can't resolve host: "); Serial.println(MQTT_SERVER); 
     #endif
   } else {
-    memcpy(&data->mqtt_host_ip, mqtt_ip, 4);
+    data->mqtt_host_ip = (uint32_t)mqtt_ip;
   }
-  strncpy(data->mqtt_auth, MQTT_AUTH, 50);
-  strncpy(data->mqtt_user, MQTT_USER, 50);
+  /*
+  strncpy(data->mqtt_auth, MQTT_AUTH, sizeof(data->mqtt_auth));
+  strncpy(data->mqtt_user, MQTT_USER, sizeof(data->mqtt_user));
   data->mqtt_host_port = MQTT_SERVER_PORT;
-  strncpy(data->mqtt_client_id, MQTT_CLIENT_ID, 50);
-  strncpy(data->mqtt_topic, MQTT_ACTION_TOPIC, 50);
-  strncpy(data->mqtt_value, MQTT_ACTION_VALUE, 50);
+  strncpy(data->mqtt_client_id, MQTT_CLIENT_ID, sizeof(data->mqtt_client_id));
+  strncpy(data->mqtt_topic, MQTT_ACTION_TOPIC, sizeof(data->mqtt_topic));
+  strncpy(data->mqtt_value, MQTT_ACTION_VALUE, sizeof(data->mqtt_value));
+  */
 }
 
 /* Save AP SSID & AUTH to data structure */
@@ -448,7 +450,7 @@ bool mqtt_connect_server(WiFiClient *wclient, WIFI_SETTINGS_T *data) {
   g_mqtt_client.setClient(*wclient);
   g_mqtt_client.setServer(data->mqtt_host_ip, data->mqtt_host_port);
 
-  if (!g_mqtt_client.connect(MQTT_CLIENT_ID, data->mqtt_user, data->mqtt_auth)) {
+  if (!g_mqtt_client.connect(data->mqtt_client_id, data->mqtt_user, data->mqtt_auth)) {
     DEBUG_LOG("MQTT.connect() FAILED");
     return false;
   }
