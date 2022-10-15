@@ -2,6 +2,8 @@
 #include <ESP8266WiFi.h>
 #include <EEPROM.h>
 #include <PubSubClient.h>
+
+// secrets.h contains WIFI and MQTT credentials
 #include "secrets.h"
 
 #define NOTIFY_PIN 3
@@ -14,6 +16,7 @@ const char* MQTT_ACTION_VALUE = "T";
 
 //#define DEBUGMODE
 
+/* Our data structure for WIFI settings */
 struct WIFI_SETTINGS {
   uint16_t magic;
   uint32_t ip_address;
@@ -32,6 +35,7 @@ struct WIFI_SETTINGS {
   char mqtt_auth[50];
 } wifi_settings;
 
+/* Show information about the global WiFi object, if we're in debug-mode */
 void show_connection() {
   #ifdef DEBUGMODE
   Serial.print("WiFi Status - State:  "); Serial.println(WiFi.status()); 
@@ -46,6 +50,9 @@ void show_connection() {
   #endif
 }
 
+/* Saves settings from global WiFi object to linked data
+ * structure, fetches IP address of MQTT server.
+ */
 void build_settings(WIFI_SETTINGS *data) {
   // main settings
   data->magic = MAGIC_NUM;
@@ -73,12 +80,17 @@ void build_settings(WIFI_SETTINGS *data) {
   data->mqtt_host_port = MQTT_SERVER_PORT;
 }
 
+/* Saves our wifi settings structure to flash memory
+ * using the EEPROM library.
+ */
 void save_settings_to_flash(WIFI_SETTINGS data) {
   EEPROM.begin(512);
   EEPROM.put(0, data);
   EEPROM.end();
 }
 
+/* Fetches settings from flash 
+*/
 int get_settings_from_flash() { // dunno why not parameters
   EEPROM.begin(512);
   EEPROM.get(0, wifi_settings);
@@ -86,6 +98,8 @@ int get_settings_from_flash() { // dunno why not parameters
   return (wifi_settings.magic == MAGIC_NUM);
 }
 
+/* If we're debugging, show the full settings
+ */
 void display_settings(WIFI_SETTINGS data) {
   #ifdef DEBUGMODE
   char buf[100];
@@ -111,6 +125,8 @@ void display_settings(WIFI_SETTINGS data) {
   #endif
 }
 
+/* Connect to the AP using traditional SSID, AUTH
+ */
 int wifi_slow_connect() {
   #define SLOW_TIMEOUT 10000 // ms
   WiFi.mode(WIFI_STA);
@@ -120,6 +136,8 @@ int wifi_slow_connect() {
   return (WiFi.status() == WL_CONNECTED);
 }
 
+/* Attempt to connect to the AP using our cached AP data
+ */
 int wifi_fast_connect(WIFI_SETTINGS data) {
   #define FAST_TIMEOUT 5000 // ms
   // try fast connect
@@ -128,17 +146,18 @@ int wifi_fast_connect(WIFI_SETTINGS data) {
     IPAddress(data.ip_dns1), IPAddress(data.ip_dns2));
   WiFi.begin(data.wifi_ssid, data.wifi_auth, 
     data.wifi_channel, data.wifi_bssid);
-  // wait for connection
-  uint32_t timeout = millis() + FAST_TIMEOUT;
-  //while ((WiFi.status() != WL_CONNECTED) && (millis()<timeout)) { delay(5); }
   // note: connection is actually not yet made
   WiFi.reconnect();
-  timeout = millis() + FAST_TIMEOUT;
+  // wait for connection, or time out
+  uint32_t timeout = millis() + FAST_TIMEOUT;
   while ((WiFi.status() != WL_CONNECTED) && (millis()<timeout)) { delay(5); }
   // should be good now
   return (WiFi.status() == WL_CONNECTED);
 }
 
+/* Start a TCP connection to the given IP address & port,
+ * this speeds things up for the MQTT client
+ */
 int preconnect_ip(WiFiClient wclient, IPAddress ip, int port) {
   #define PRECONNECT_TIMEOUT 5000
   uint32_t timeout = millis() + PRECONNECT_TIMEOUT;
@@ -146,8 +165,11 @@ int preconnect_ip(WiFiClient wclient, IPAddress ip, int port) {
   return (wclient.connected());
 }
 
-int publish_mqtt(WiFiClient& wclient, WIFI_SETTINGS data, char *topic, char *value, 
-    int includestate=0, int autodiscover=0) {
+/* Publish our request to the MQTT server
+ * Includes home-assistant autodiscovery if specified.
+ */
+int publish_mqtt(WiFiClient& wclient, WIFI_SETTINGS data, char *topic, 
+    char *value, int includestate=0, int autodiscover=0) {
   // no timeouts no ragrets
   PubSubClient mqtt_client(wclient);
   mqtt_client.setServer(data.mqtt_host_ip, data.mqtt_host_port);
@@ -218,8 +240,8 @@ int publish_mqtt(WiFiClient& wclient, WIFI_SETTINGS data, char *topic, char *val
   return status;
 }
 
+/* Waits a bit and blinks at 2Hz, to show we've done something */
 void countdown(int secs) {
-  // just some blinking to show we're alive
   pinMode(LED_PIN, OUTPUT);
   #ifdef DEBUGMODE
   Serial.print("Wait: ");
@@ -233,6 +255,9 @@ void countdown(int secs) {
   }
 }
 
+/* We need to do a traditional, slow connection, and then cache the
+ * WiFi settings in Flash 
+ */
 int slow_rebuild() {
   int working = 0;
   #ifdef DEBUGMODE
@@ -262,6 +287,14 @@ int slow_rebuild() {
   return working;
 }
 
+/* Main setup() function: 
+ *  1. Pulls NOTIFY_PIN high (keeps power on)
+ *  2. If no cached wifi data: do a traditional connect & cache
+ *  3. Alternately: try fast wifi connect, or traditional connect
+ *  4. Connect to MQTT server
+ *  5. Send MQTT packets, including Home-Assistant autodiscovery
+ *  6. (MCU continues with loop() below)
+ */
 void setup() {
   #ifndef DEBUGMODE
   pinMode(NOTIFY_PIN, OUTPUT); 
@@ -400,21 +433,16 @@ void setup() {
   #endif
 }
 
+/* Main processing loop():
+ *  1. Blink 1.5 seconds at 10Hz
+ *  2. Pull NOTIFY_PIN down (power off)
+ *  3. If someone is still pusing power, rebuild the Wifi cache
+ *  4. Go into deep sleep
+ */
 void loop() {
-  //#define REBUILD_YES
-  #ifdef REBUILD_YES
-    Serial.print("Rebuilding: ");
-    countdown(5);
-    uint32_t start_time_all = millis();
-    slow_rebuild();
-    Serial.println();
-    Serial.print("Duration: "); 
-    Serial.print((millis()-start_time_all)/(TEST_COUNT)); 
-    Serial.println(" ms");
-  #endif
   #ifndef DEBUGMODE
-  for (int i=0; i<10; i++) {
-    digitalWrite(LED_PIN, ((i%2)==0)?LOW:HIGH); delay(150);
+  for (int i=0; i<1500/100; i++) {
+    digitalWrite(LED_PIN, ((i%2)==0)?LOW:HIGH); delay(100);
   }
   digitalWrite(LED_PIN, HIGH); // LED off
   digitalWrite(NOTIFY_PIN, LOW); // should power down
@@ -425,7 +453,8 @@ void loop() {
   delay(100);
   slow_rebuild();
   WiFiClient wclient;
-  if (preconnect_ip(wclient, wifi_settings.mqtt_host_ip, wifi_settings.mqtt_host_port)) {
+  if (preconnect_ip(wclient, wifi_settings.mqtt_host_ip, 
+                    wifi_settings.mqtt_host_port)) {
     char topic[100]; topic[0]=0;
     char value[100]; value[0]=0;
     publish_mqtt(wclient, wifi_settings, topic, value, false, true);
@@ -441,4 +470,5 @@ void loop() {
   ESP.restart();
   Serial.println("Should not be here.");
   #endif
+  // never does second loop
 }
