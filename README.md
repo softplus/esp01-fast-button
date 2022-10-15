@@ -2,6 +2,8 @@
 
 Code sample for a basic ESP-01 Wifi-button, showing how to cache the wifi connection data to achieve a faster connection to the access point. Regularly connects within 200ms.
 
+[MIT license](LICENSE) / (c) 2022 [John Mueller](https://johnmu.com/)
+
 # Hardware 
 
 Sample hardware uses an ESP-01 module, with pin 3 being used to control the power to the module. The hardware could be simplified to go to deep sleep, but I like the idea of pulling out your own power cord :). 
@@ -34,4 +36,12 @@ Part of what makes the wifi connection to the AP slow is getting the BSSID of th
 
 2. Blink a bit and pull own power plug
 3. If someone's still pushing the button, refresh the wifi connection cache
+
+# To-do's
+
+* simplify MQTT packet-building
+* strip unnecessary stuff
+* add hardware schematic, circuit board
+* confirm timings of individual steps
+* add soft-AP support to not require code-level settings
 
