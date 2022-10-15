@@ -28,9 +28,7 @@
 #include "settings.h"
 #include "wifi_helper.h"
 #include "mqtt_helper.h"
-
-#define NOTIFY_PIN 3
-#define LED_PIN 2
+#include "ap_mode.h"
 
 WIFI_SETTINGS_T g_wifi_settings;
 bool g_wifi_mqtt_working;
@@ -80,7 +78,7 @@ void setup() {
     #ifdef DEBUG_MODE
     show_settings(&g_wifi_settings);
     #endif
-    if (!wifi_try_fast_connect(&g_wifi_settings, &WiFi)) { 
+    if ((g_wifi_settings.force_slow==1) || (!wifi_try_fast_connect(&g_wifi_settings, &WiFi))) { 
       // nope, revert to slow
       g_wifi_mqtt_working = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
       autodiscover_mqtt = true;
@@ -135,6 +133,11 @@ void setup() {
 void loop() {
   DEBUG_LOG("\n#  loop()");
 
+  #ifdef DEBUG_AP_MODE
+  bool res = enable_ap_mode(&g_wifi_settings);
+  if (res) run_ap_mode(&g_wifi_settings);
+  #endif
+
   #ifndef DEBUG_MODE
   for (int i=0; i<1500/100; i++) {
     digitalWrite(LED_PIN, ((i%2)==0)?LOW:HIGH); delay(100);
@@ -166,9 +169,9 @@ void loop() {
   countdown(4);
   DEBUG_LOG("ESP.restart() ...");
   ESP.restart();
-  DEBUG_LOG("... FAILED ... you should never be here, let's try reset");
+  delay(100);
   ESP.reset();
-  DEBUG_LOG("... FAILED ... let's sleep");
+  DEBUG_LOG("... Restart & reset failed ... let's sleep");
   ESP.deepSleep(30e6); 
   #endif
   // never does second loop

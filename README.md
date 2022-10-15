@@ -48,6 +48,10 @@ Part of what makes the wifi connection to the AP slow is getting the BSSID of th
 * add hardware schematic, circuit board
 * confirm timings of individual steps
 * add Soft-AP mode for making settings
+  * trigger AP mode properly
+  * display last IP address in AP mode
+* escape MQTT JSON strings properly
+* escape MQTT topic, value
 
 # FYI
 

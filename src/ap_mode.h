@@ -18,49 +18,15 @@
   THE SOFTWARE.
 */
 
-/* settings.h */
+/* ap_mode.h - for a local access point to make settings changes */
 
-#ifndef SETTINGS_H
-#define SETTINGS_H
+#ifndef AP_MODE_H
+#define AP_MODE_H
 
+#include "settings.h"
 #include <ESP8266WiFi.h>
 
-/* Our data structure for WIFI settings */
-#define SETTINGS_MAGIC_NUM 0x1AC4
-#define SETTINGS_VERSION 2
-
-struct WIFI_SETTINGS_T { // size: 644 bytes
-  uint16_t magic;
-  uint32_t ip_address;
-  uint32_t ip_gateway;
-  uint32_t ip_mask;
-  uint32_t ip_dns1;
-  uint32_t ip_dns2;
-  char wifi_ssid[50];
-  char wifi_auth[50];
-  uint8_t wifi_bssid[6];
-  uint8_t wifi_channel;
-  char mqtt_host_str[50];
-  uint32_t mqtt_host_ip;
-  uint16_t mqtt_host_port;
-  char mqtt_user[50];
-  char mqtt_auth[50];
-  char mqtt_client_id[50];
-  char mqtt_topic[100];
-  char mqtt_value[100];
-  char mqtt_homeassistant_topic[100];
-  uint8_t version;
-  uint8_t force_slow;
-  char filler[379]; // not used
-};
-
-
-
-void save_settings_to_flash(WIFI_SETTINGS_T *data);
-bool get_settings_from_flash(WIFI_SETTINGS_T *data);
-void default_settings(WIFI_SETTINGS_T *data);
-void build_settings_from_wifi(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w);
-void set_settings_ap(WIFI_SETTINGS_T *data, char *ssid, char *auth);
-void show_settings(WIFI_SETTINGS_T *data);
+bool enable_ap_mode(WIFI_SETTINGS_T *data);
+void run_ap_mode(WIFI_SETTINGS_T *data);
 
 #endif

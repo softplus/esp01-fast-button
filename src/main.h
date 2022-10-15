@@ -23,8 +23,12 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-//#define DEBUG_MODE
+#define DEBUG_MODE
 //#define DEBUG_AUTODISCOVER
+//#define DEBUG_AP_MODE
+
+#define LED_PIN 2
+#define NOTIFY_PIN 3
 
 #ifdef DEBUG_MODE
 #define DEBUG_LOG(x) Serial.print(F(x)); Serial.print(F(" @ ")); Serial.println(millis()) 
