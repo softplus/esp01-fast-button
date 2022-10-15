@@ -44,4 +44,7 @@ Part of what makes the wifi connection to the AP slow is getting the BSSID of th
 * add hardware schematic, circuit board
 * confirm timings of individual steps
 * add soft-AP support to not require code-level settings
+* add version number to settings structure
+* add filler to settings structure
+* add Soft-AP mode for making settings
 

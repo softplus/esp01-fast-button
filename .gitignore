@@ -31,9 +31,6 @@
 *.out
 *.app
 
-# local credentials
-src/secrets.h
-
 # unnecessary stuff
 .pio
 .vscode
