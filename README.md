@@ -4,9 +4,9 @@ Code sample for a basic ESP-01 Wifi-button, showing how to cache the wifi connec
 
 [MIT license](LICENSE) / (c) 2022 [John Mueller](https://johnmu.com/)
 
-# Hardware 
+# Hardware
 
-Sample hardware uses an ESP-01 module, with pin 3 being used to control the power to the module. The hardware could be simplified to go to deep sleep, but I like the idea of pulling out your own power cord :). 
+Sample hardware uses an ESP-01 module, with pin 3 being used to control the power to the module. The hardware could be simplified to go to deep sleep, but I like the idea of pulling out your own power cord :).
 
 ## High-level hardware flow
 
@@ -34,14 +34,14 @@ Part of what makes the wifi connection to the AP slow is getting the BSSID of th
        3. save cached connection information (BSSID, IPs, etc)
        4. connect & send MQTT packets
     3. If no valid settings:
-       1. Jump to OTA mode below
+       1. Jump to AP mode below
 
 2. Blink a bit and pull own power plug
 3. If someone's still pushing the button, refresh the wifi connection cache
 4. Wait 4 seconds
-5. If someone's still pushing the button, start OTA mode (blink at 0.5Hz)
-6. Remain in OTA mode 5 minutes, await connection
-7. If connection: remain in OTA mode for 5 minutes
+5. If someone's still pushing the button, start AP mode (blink at 0.5Hz)
+6. Remain in AP mode 5 minutes, await connection
+7. If connection: remain in AP mode for 5 minutes
 
 # To-do's
 
