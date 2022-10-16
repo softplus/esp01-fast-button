@@ -87,6 +87,8 @@ bool mqtt_send_topic(char *topic, char *value) {
  */
 bool mqtt_send_autodiscover(WIFI_SETTINGS_T *data) {
     DEBUG_LOG("mqtt_send_autodiscover()");
+    if (!data->mqtt_homeassistant_topic[0]) return true; 
+
     char buf_topic[200], buf_value[400];
     char state_topic[100];
     snprintf(state_topic, sizeof(state_topic), "softplus/%s/state", 
@@ -98,7 +100,8 @@ bool mqtt_send_autodiscover(WIFI_SETTINGS_T *data) {
         state_topic, data->mqtt_client_id, data->mqtt_client_id, data->mqtt_client_id);
 
     snprintf(buf_topic, sizeof(buf_topic), 
-        "homeassistant/binary_sensor/%s/config", data->mqtt_client_id);
+        "%s/binary_sensor/%s/config", 
+        data->mqtt_homeassistant_topic, data->mqtt_client_id);
 
     return mqtt_send_topic(buf_topic, buf_value);
 }
