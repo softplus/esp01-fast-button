@@ -23,13 +23,16 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#define DEBUG_MODE
+// various debug modes, uncomment as needed
+//#define DEBUG_MODE
 //#define DEBUG_AUTODISCOVER
 //#define DEBUG_AP_MODE
 
+// pin definitions for hardware
 #define LED_PIN 2
 #define NOTIFY_PIN 3
 
+// Macro to display a debug text + timing
 #ifdef DEBUG_MODE
 #define DEBUG_LOG(x) Serial.print(F(x)); Serial.print(F(" @ ")); Serial.println(millis()) 
 #else
