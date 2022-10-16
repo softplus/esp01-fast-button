@@ -69,21 +69,21 @@ void setup() {
 
   DEBUG_LOG("\n## WIFI:");
   if (!get_settings_from_flash(&g_wifi_settings)) {
+    // if we have no settings, start with default
     default_settings(&g_wifi_settings);
-    // todo: this will fail without credentials
-    g_wifi_mqtt_working = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
-    autodiscover_mqtt = true;
+    g_wifi_mqtt_working = false;
   } else {
-    // try fast-connect
+    // connect to wifi
     #ifdef DEBUG_MODE
     show_settings(&g_wifi_settings);
     #endif
-    if ((g_wifi_settings.force_slow==1) || (!wifi_try_fast_connect(&g_wifi_settings, &WiFi))) { 
-      // nope, revert to slow
+    // attempt fast connect first
+    g_wifi_mqtt_working = wifi_try_fast_connect(&g_wifi_settings, &WiFi);
+    if (!g_wifi_mqtt_working) { 
+      // traditional wifi connection
       g_wifi_mqtt_working = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
+      if (g_wifi_mqtt_working) save_settings_to_flash(&g_wifi_settings);
       autodiscover_mqtt = true;
-    } else {
-      g_wifi_mqtt_working = true;
     }
   }
   #ifdef DEBUG_AUTODISCOVER
@@ -98,17 +98,19 @@ void setup() {
     if (!mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
       DEBUG_LOG("mqtt_connect_server() FAILED");
       g_wifi_mqtt_working = false;
-    } else {
+    } 
+    if (g_wifi_mqtt_working) {
       if (!mqtt_send_topic(g_wifi_settings.mqtt_topic, g_wifi_settings.mqtt_value)) {
         DEBUG_LOG("mqtt_send_topic(main) FAILED");
         g_wifi_mqtt_working = false;
-      } else {
-        if (autodiscover_mqtt) {
-          mqtt_send_autodiscover(&g_wifi_settings);
-          mqtt_send_network_info(&WiFi, &g_wifi_settings);
-        }
-        mqtt_send_device_state(&g_wifi_settings);
       }
+    }
+    if (g_wifi_mqtt_working) {
+      if (autodiscover_mqtt) {
+        mqtt_send_autodiscover(&g_wifi_settings);
+        mqtt_send_network_info(&WiFi, &g_wifi_settings);
+      }
+      mqtt_send_device_state(&g_wifi_settings);
     }
   }
   #ifdef DEBUG_MODE
@@ -135,45 +137,54 @@ void loop() {
 
   #ifdef DEBUG_AP_MODE
   bool res = enable_ap_mode(&g_wifi_settings);
-  if (res) run_ap_mode(&g_wifi_settings);
+  if (res) run_ap_mode(&g_wifi_settings); // reboots afterwards
   #endif
 
   #ifndef DEBUG_MODE
-  for (int i=0; i<1500/100; i++) {
-    digitalWrite(LED_PIN, ((i%2)==0)?LOW:HIGH); delay(100);
-  }
-  digitalWrite(LED_PIN, HIGH); // LED off
-  digitalWrite(NOTIFY_PIN, LOW); // should power down
-  delay(4000); // wait a little
-  // if still here, rebuild it all
-  digitalWrite(LED_PIN, LOW); // LED on
-  digitalWrite(NOTIFY_PIN, HIGH); // keep power up now
-  delay(100);
-  // disconnect MQTT, reconnect Wifi, cache state, do autodiscovery
-  mqtt_disconnect();
-  bool res = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
-  if (res) {
-    if (mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
-      mqtt_send_network_info(&WiFi, &g_wifi_settings);
-      mqtt_send_autodiscover(&g_wifi_settings);
+  if (g_wifi_mqtt_working) {
+    // @ ca 3s
+    for (int i=0; i<1500/100; i++) {
+      digitalWrite(LED_PIN, ((i%2)==0)?LOW:HIGH); delay(100);
     }
+    // @ ca 5s
+    digitalWrite(LED_PIN, HIGH); // LED off
+    digitalWrite(NOTIFY_PIN, LOW); // should power down
+    delay(2000); // wait a little; @ ca 7s
+    // if still here, rebuild it all
+    digitalWrite(LED_PIN, LOW); // LED on
+    digitalWrite(NOTIFY_PIN, HIGH); // keep power up now
+    delay(100);
+    // disconnect MQTT, reconnect Wifi, cache state, do autodiscovery
+    mqtt_disconnect();
+    bool res = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
+    if (res) {
+      save_settings_to_flash(&g_wifi_settings);
+      if (mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
+        mqtt_send_network_info(&WiFi, &g_wifi_settings);
+        mqtt_send_autodiscover(&g_wifi_settings);
+      }
+    }
+    // complete, @ ca 12s
+    digitalWrite(LED_PIN, HIGH); // LED off
+    delay(200); // wait a little
+    digitalWrite(NOTIFY_PIN, LOW); // power down again
   }
-  // complete
-  digitalWrite(LED_PIN, HIGH); // LED off
-  delay(1000); // wait a little
-  digitalWrite(NOTIFY_PIN, LOW); // power down again
-  ESP.deepSleep(30e6); // this actually never wakes up, muhahaha
+  // is anyone still pushing the button? start AP mode.
+  // @ ca 15s, or 3s after first start
+  digitalWrite(NOTIFY_PIN, HIGH); // power up
+  bool res = enable_ap_mode(&g_wifi_settings);
+  if (res) run_ap_mode(&g_wifi_settings); 
+  // reboots afterwards
   #endif
 
   #ifdef DEBUG_MODE
   countdown(4);
+  #endif
+
   DEBUG_LOG("ESP.restart() ...");
-  ESP.restart();
-  delay(100);
-  ESP.reset();
+  ESP.restart(); ESP.reset();
   DEBUG_LOG("... Restart & reset failed ... let's sleep");
   ESP.deepSleep(30e6); 
-  #endif
   // never does second loop
 }
 
