@@ -40,7 +40,7 @@ Part of what makes the wifi connection to the AP slow is getting the BSSID of th
 2. Blink a bit and pull own power plug
 3. If someone's still pushing the button, refresh the wifi connection cache
 4. Wait 4 seconds
-5. If someone's still pushing the button, start AP mode (blink at 0.5Hz)
+5. If someone's still pushing the button, start AP mode (blink at 0.5Hz). The device is available at http://192.168.4.1/ . The name of the access point depends on the device's MAC address.
 6. Remain in AP mode 5 minutes, await connection
 7. If connection: remain in AP mode for 5 minutes
 
