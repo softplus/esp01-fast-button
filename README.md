@@ -33,13 +33,13 @@ Part of what makes the wifi connection to the AP slow is getting the BSSID of th
        2. Get MQTT server's IP address
        3. save cached connection information (BSSID, IPs, etc)
        4. connect & send MQTT packets
-    3. If no valid settings: 
+    3. If no valid settings:
        1. Jump to OTA mode below
 
 2. Blink a bit and pull own power plug
 3. If someone's still pushing the button, refresh the wifi connection cache
 4. Wait 4 seconds
-5. If someone's still pushing the button, start OTA mode
+5. If someone's still pushing the button, start OTA mode (blink at 0.5Hz)
 6. Remain in OTA mode 5 minutes, await connection
 7. If connection: remain in OTA mode for 5 minutes
 
@@ -47,11 +47,9 @@ Part of what makes the wifi connection to the AP slow is getting the BSSID of th
 
 * add hardware schematic, circuit board
 * confirm timings of individual steps
-* add Soft-AP mode for making settings
-  * trigger AP mode properly
-  * display last IP address in AP mode
 * escape MQTT JSON strings properly
 * escape MQTT topic, value
+* double-check char-array sizes
 
 # FYI
 
