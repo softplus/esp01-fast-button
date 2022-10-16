@@ -97,27 +97,27 @@ void run_ap_mode(WIFI_SETTINGS_T *data) {
     }
 }
 
-/* show string in HTML escaped form
+/* show string in HTML escaped form; ignore entities, escape all non-alphanum
  */
 void _show_escape_html(char *input) {
-    char *p = input;
     char buf[100];
-    char *o = (char *)&buf;
-    while (*p) {
-        if (isalnum(*p)) { 
-            *o=*p; o++; 
+    char *in_ptr = input;
+    char *out_ptr = (char *)&buf;
+    while (*in_ptr) {
+        if (isalnum(*in_ptr)) { 
+            *out_ptr=*in_ptr; out_ptr++; 
         } else {
-            o += sprintf(o, "&#%i;", *p);
+            out_ptr += sprintf(out_ptr, "&#%i;", *in_ptr);
         }
 
-        if (o-(char *)&buf>(int)sizeof(buf)-8) {
-            *o=0;
+        if (out_ptr-(char *)&buf>(int)sizeof(buf)-8) {
+            *out_ptr=0;
             local_server.sendContent(buf);
-            o=(char *)&buf;
+            out_ptr=(char *)&buf;
         }
-        p++;
+        in_ptr++;
     }
-    *o=0;
+    *out_ptr=0; 
     local_server.sendContent(buf);
 }
 
@@ -126,12 +126,12 @@ void _show_escape_html(char *input) {
 void _show_field(char const *label, char const *id, char *value) {
     local_server.sendContent("<p>");
     local_server.sendContent(label);
-    local_server.sendContent(":<br />");
+    local_server.sendContent(":<br>");
     local_server.sendContent("<input type=\"text\" name=\"");
     local_server.sendContent(id);
     local_server.sendContent("\" value=\"");
     _show_escape_html(value);
-    local_server.sendContent("\" /></p>\n");
+    local_server.sendContent("\"></p>\n");
 }
 
 /* Serve homepage, with form for settings 
@@ -147,17 +147,16 @@ void _handle_root() {
         "\r\n");
 
     // page start
-    local_server.sendContent( R"rawliteral(
-        <!DOCTYPE HTML><html><head>
-            <meta charset="utf-8" />
-            <title>Fast Button Setup</title>
-            <meta name="robots" content="none" />
-            <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <style>
-            </style>
+    local_server.sendContent( R"rawliteral(<!DOCTYPE HTML><html><head>
+        <meta charset="utf-8">
+        <title>Fast Button Setup</title>
+        <meta name="robots" content="none">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+        </style>
         </head><body>
-            <h1>Fast button setup</h1>
-            <form action="/get">)rawliteral" );
+        <h1>Fast button setup</h1>
+        <form action="/get">)rawliteral" );
 
     char buf[20];
 
@@ -177,21 +176,38 @@ void _handle_root() {
 
     // below form
     local_server.sendContent( R"rawliteral(
-        <br /><br />
-        <input type="submit" value="Submit">
-        </form>)rawliteral" );
+        <input type="submit" name="submit" value="Save settings">)rawliteral" );
+    local_server.sendContent( R"rawliteral(
+        <input type="submit" name="reboot" value="Save and reboot">)rawliteral" );
+    local_server.sendContent("</form>");
 
     // page footer start
     local_server.sendContent( R"rawliteral(
         <footer>
-        <p><a href="https://johnmu.com/">johnmu</a></p>
+        <p>(c) <a href="https://johnmu.com/">johnmu</a> - 
         )rawliteral" );
     
-    local_server.sendContent("<p>Built ");
+    local_server.sendContent("Built ");
     local_server.sendContent(__DATE__);
     local_server.sendContent(" ");
     local_server.sendContent(__TIME__);
     local_server.sendContent("</p>");
+
+    local_server.sendContent( R"rawliteral(<p>
+        This module reboots in <span id="timer">...</span>.</p>
+          <script>
+            var finished = Date.now() + )rawliteral" );
+    sprintf(buf, "%lu", ap_timeout-millis());
+    local_server.sendContent(buf);
+    local_server.sendContent( R"rawliteral(;
+            setInterval(function() {
+              let remaining = (finished - Date.now())/1000; 
+              remaining = (remaining<0)?0:remaining;
+              let mins = (remaining/60)|0; 
+              let secs = (remaining%60)|0;
+              document.getElementById("timer").innerHTML = mins + ":" + ((secs<10)?"0":"") + secs;
+            }, 1000);
+          </script>)rawliteral" );
 
     // page footer finish
     local_server.sendContent( R"rawliteral(
@@ -202,12 +218,15 @@ void _handle_root() {
 
 /* Check if the user submitted the variable, then read it 
  */
-void _read_field(char const *id, char *dest, int len) {
+int _read_field(char const *id, char *dest, int len) {
     if (local_server.hasArg(id)) {
         if (local_server.arg(id).length()<(unsigned int)len-1) {
+            int changed = (strcmp(dest, local_server.arg(id).c_str())!=0)?1:0;
             strcpy(dest, local_server.arg(id).c_str());
+            return changed;
         }
     }
+    return 0;
 }
 
 
@@ -216,26 +235,48 @@ void _read_field(char const *id, char *dest, int len) {
 void _handle_form() {
 
     // handle fields
-    _read_field("wifi_ssid", _data->wifi_ssid, sizeof(_data->wifi_ssid));
-    _read_field("wifi_auth", _data->wifi_auth, sizeof(_data->wifi_auth));
+    int changes = 0;
+    changes += _read_field("wifi_ssid", _data->wifi_ssid, sizeof(_data->wifi_ssid));
+    changes += _read_field("wifi_auth", _data->wifi_auth, sizeof(_data->wifi_auth));
 
-    _read_field("mqtt_host_str", _data->mqtt_host_str, sizeof(_data->mqtt_host_str));
+    changes += _read_field("mqtt_host_str", _data->mqtt_host_str, sizeof(_data->mqtt_host_str));
     char buf[20], *end;
-    _read_field("mqtt_port", (char *)&buf, sizeof(buf));
+    snprintf(buf, sizeof(buf), "%i", _data->mqtt_host_port);
+    changes += _read_field("mqtt_port", (char *)&buf, sizeof(buf));
     long int res = strtol(buf, &end, 10);
     if (res>0 && res<32000) _data->mqtt_host_port= (int)res;
 
-    _read_field("mqtt_user", _data->mqtt_user, sizeof(_data->mqtt_user));
-    _read_field("mqtt_auth", _data->mqtt_auth, sizeof(_data->mqtt_auth));
+    changes += _read_field("mqtt_user", _data->mqtt_user, sizeof(_data->mqtt_user));
+    changes += _read_field("mqtt_auth", _data->mqtt_auth, sizeof(_data->mqtt_auth));
 
-    _read_field("mqtt_client_id", _data->mqtt_client_id, sizeof(_data->mqtt_client_id));
-    _read_field("mqtt_topic", _data->mqtt_topic, sizeof(_data->mqtt_topic));
-    _read_field("mqtt_value", _data->mqtt_value, sizeof(_data->mqtt_value));
-    _read_field("mqtt_ha", _data->mqtt_homeassistant_topic, sizeof(_data->mqtt_homeassistant_topic));
+    changes += _read_field("mqtt_client_id", _data->mqtt_client_id, sizeof(_data->mqtt_client_id));
+    changes += _read_field("mqtt_topic", _data->mqtt_topic, sizeof(_data->mqtt_topic));
+    changes += _read_field("mqtt_value", _data->mqtt_value, sizeof(_data->mqtt_value));
+    changes += _read_field("mqtt_ha", _data->mqtt_homeassistant_topic, sizeof(_data->mqtt_homeassistant_topic));
 
-    // save to flash
-    _data->force_slow = 1;
-    save_settings_to_flash(_data);
+    if (changes) {
+        // save to flash
+        DEBUG_LOG("Found changes, saving to flash.");
+        _data->force_slow = 1;
+        save_settings_to_flash(_data);
+    }
+
+    if (local_server.hasArg("reboot")) {
+        DEBUG_LOG("Rebooting.");
+        // show reboot message
+        local_server.sendContent("HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/html\r\n\r\n");
+
+        local_server.sendContent( 
+            R"rawliteral(<!DOCTYPE HTML><html><head><meta charset="utf-8" />
+            <title>Rebooting</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            </head><body><h1>Rebooting ...</h1><script>history.pushState({},"","/");</script>
+            </body></html>)rawliteral" );
+
+        delay(500);
+        ESP.restart(); ESP.reset();
+    }
 
     // return to homepage
     local_server.sendContent("HTTP/1.1 302 Temporary redirect\r\n"
