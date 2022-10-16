@@ -39,25 +39,23 @@ static bool led_status;
 void _handle_root();
 void _handle_404();
 void _handle_form();
-static WIFI_SETTINGS_T *_data;
+static WIFI_SETTINGS_T *_data; // pointer to actual data
 
 /* Enables AP mode, if doable 
  */
 bool enable_ap_mode(WIFI_SETTINGS_T *data) {
     DEBUG_LOG("enable_ap_mode()");
 
-    char ap_name[100];
+    char ap_name[30]; // AP name is "AP_001122" with 001122 being last MAC digits
     uint8_t mac[6];
     (void)WiFi.macAddress(&mac[0]);
     snprintf(ap_name, sizeof(ap_name), "AP_%02X%02X%02X", mac[3], mac[4], mac[5]);
 
-    bool res = WiFi.softAP(ap_name, "");
+    bool res = WiFi.softAP(ap_name, ""); // no password
     if (res) {
         DEBUG_LOG("AP mode enabled.");
         #ifdef DEBUG_MODE
-        Serial.print("AP: "); Serial.print(ap_name); Serial.print("  ");
-        Serial.print("http://");
-        Serial.print(WiFi.localIP()); Serial.println("/");
+        Serial.print("AP: "); Serial.println(ap_name); 
         #endif
     }
     return res;
@@ -69,7 +67,7 @@ static void _handle_led() {
     if (millis() > led_time_next) {
         led_time_next = millis() + (led_status?500:1500);
         led_status = !led_status;
-        digitalWrite(LED_BUILTIN, led_status?LOW:HIGH); // LED_BUILTIN / LED_PIN
+        digitalWrite(LED_PIN, led_status?LOW:HIGH);
         #ifdef DEBUG_MODE
         if (led_status) Serial.print(".");
         #endif
@@ -77,6 +75,7 @@ static void _handle_led() {
 }
 
 /* Runs device in AP mode to do settings and stuff 
+ * Time out after given time, then reboot.
  */
 void run_ap_mode(WIFI_SETTINGS_T *data) {
     DEBUG_LOG("run_ap_mode()");
@@ -92,9 +91,11 @@ void run_ap_mode(WIFI_SETTINGS_T *data) {
     while (millis() < ap_timeout) {
         _handle_led();
         local_server.handleClient();
-
         delay(50);
     }
+    DEBUG_LOG("Rebooting after timeout.");
+    delay(500);
+    ESP.restart(); ESP.reset();
 }
 
 /* show string in HTML escaped form; ignore entities, escape all non-alphanum
@@ -148,14 +149,10 @@ void _handle_root() {
 
     // page start
     local_server.sendContent( R"rawliteral(<!DOCTYPE HTML><html><head>
-        <meta charset="utf-8">
-        <title>Fast Button Setup</title>
+        <meta charset="utf-8"><title>Fast Button Setup</title>
         <meta name="robots" content="none">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-        </style>
-        </head><body>
-        <h1>Fast button setup</h1>
+        </head><body><h1>Fast button setup</h1>
         <form action="/get">)rawliteral" );
 
     char buf[20];
@@ -205,7 +202,8 @@ void _handle_root() {
               remaining = (remaining<0)?0:remaining;
               let mins = (remaining/60)|0; 
               let secs = (remaining%60)|0;
-              document.getElementById("timer").innerHTML = mins + ":" + ((secs<10)?"0":"") + secs;
+              document.getElementById("timer").innerHTML = (
+                mins + ":" + ((secs<10)?"0":"") + secs);
             }, 1000);
           </script>)rawliteral" );
 
@@ -216,7 +214,8 @@ void _handle_root() {
 }
 
 
-/* Check if the user submitted the variable, then read it 
+/* Check if the user submitted the variable, then read it
+ * Check for maximal length, store everything. Return 1 if changed.
  */
 int _read_field(char const *id, char *dest, int len) {
     if (local_server.hasArg(id)) {
