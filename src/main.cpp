@@ -1,21 +1,21 @@
 /*
-  Copyright (c) 2022-2022 John Mueller
+	Copyright (c) 2022-2022 John Mueller
 
-  Permission is hereby granted, free of charge, to any person obtaining a copy
-  of this software and associated documentation files (the "Software"), to deal
-  in the Software without restriction, including without limitation the rights
-  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-  copies of the Software, and to permit persons to whom the Software is
-  furnished to do so, subject to the following conditions:
-  The above copyright notice and this permission notice shall be included in
-  all copies or substantial portions of the Software.
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-  THE SOFTWARE.
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+	The above copyright notice and this permission notice shall be included in
+	all copies or substantial portions of the Software.
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+	THE SOFTWARE.
 */
 
 /* main.cpp */
@@ -39,7 +39,7 @@ WiFiClient g_wclient;
 void countdown(int secs);
 
 
-/* Main setup() function: 
+/* Main setup() function:
  *  1. Pulls NOTIFY_PIN high (keeps power on)
  *  2. If no cached wifi data: do a traditional connect & cache
  *  3. Alternately: try fast wifi connect, or traditional connect
@@ -48,81 +48,81 @@ void countdown(int secs);
  *  6. (MCU continues with loop() below)
  */
 void setup() {
-  #ifndef DEBUG_MODE
-  pinMode(NOTIFY_PIN, OUTPUT); 
-  digitalWrite(NOTIFY_PIN, HIGH); 
-  #endif
-  WiFi.setAutoConnect(false);
+	#ifndef DEBUG_MODE
+	pinMode(NOTIFY_PIN, OUTPUT);
+	digitalWrite(NOTIFY_PIN, HIGH);
+	#endif
+	WiFi.setAutoConnect(false);
 
-  pinMode(LED_PIN, OUTPUT); 
-  digitalWrite(LED_PIN, LOW); // LED on
+	pinMode(LED_PIN, OUTPUT);
+	digitalWrite(LED_PIN, LOW); // LED on
 
-  #ifdef DEBUG_MODE
-  Serial.begin(115200);
-  Serial.print("Starting soon...");
-  countdown(4);
-  #endif
-  g_start_millis = millis();
+	#ifdef DEBUG_MODE
+	Serial.begin(115200);
+	Serial.print("Starting soon...");
+	countdown(4);
+	#endif
+	g_start_millis = millis();
 
-  g_wifi_mqtt_working = false; // assume the worst
-  bool autodiscover_mqtt = false;
+	g_wifi_mqtt_working = false; // assume the worst
+	bool autodiscover_mqtt = false;
 
-  DEBUG_LOG("\n## WIFI:");
-  if (!get_settings_from_flash(&g_wifi_settings)) {
-    // if we have no settings, start with default
-    default_settings(&g_wifi_settings);
-    g_wifi_mqtt_working = false;
-  } else {
-    // connect to wifi
-    #ifdef DEBUG_MODE
-    show_settings(&g_wifi_settings);
-    #endif
-    // attempt fast connect first
-    g_wifi_mqtt_working = wifi_try_fast_connect(&g_wifi_settings, &WiFi);
-    if (!g_wifi_mqtt_working) { 
-      // traditional wifi connection
-      g_wifi_mqtt_working = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
-      if (g_wifi_mqtt_working) save_settings_to_flash(&g_wifi_settings);
-      autodiscover_mqtt = true;
-    }
-  }
-  #ifdef DEBUG_AUTODISCOVER
-  autodiscover_mqtt = true;
-  #endif
+	DEBUG_LOG("\n## WIFI:");
+	if (!get_settings_from_flash(&g_wifi_settings)) {
+		// if we have no settings, start with default
+		default_settings(&g_wifi_settings);
+		g_wifi_mqtt_working = false;
+	} else {
+		// connect to wifi
+		#ifdef DEBUG_MODE
+		show_settings(&g_wifi_settings);
+		#endif
+		// attempt fast connect first
+		g_wifi_mqtt_working = wifi_try_fast_connect(&g_wifi_settings, &WiFi);
+		if (!g_wifi_mqtt_working) {
+			// traditional wifi connection
+			g_wifi_mqtt_working = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
+			if (g_wifi_mqtt_working) save_settings_to_flash(&g_wifi_settings);
+			autodiscover_mqtt = true;
+		}
+	}
+	#ifdef DEBUG_AUTODISCOVER
+	autodiscover_mqtt = true;
+	#endif
 
-  DEBUG_LOG("\n## MQTT:");
-  if (g_wifi_mqtt_working) {
-    #ifdef DEBUG_MODE
-    show_wifi_info(&WiFi);
-    #endif
-    if (!mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
-      DEBUG_LOG("mqtt_connect_server() FAILED");
-      g_wifi_mqtt_working = false;
-    } 
-    if (g_wifi_mqtt_working) {
-      if (!mqtt_send_topic(g_wifi_settings.mqtt_topic, g_wifi_settings.mqtt_value)) {
-        DEBUG_LOG("mqtt_send_topic(main) FAILED");
-        g_wifi_mqtt_working = false;
-      }
-    }
-    if (g_wifi_mqtt_working) {
-      if (autodiscover_mqtt) {
-        mqtt_send_autodiscover(&g_wifi_settings);
-        mqtt_send_network_info(&WiFi, &g_wifi_settings);
-      }
-      mqtt_send_device_state(&g_wifi_settings);
-    }
-  }
-  #ifdef DEBUG_MODE
-  Serial.print("Result: ");
-  if (g_wifi_mqtt_working) Serial.println("OK"); else Serial.println("FAILED");
+	DEBUG_LOG("\n## MQTT:");
+	if (g_wifi_mqtt_working) {
+		#ifdef DEBUG_MODE
+		show_wifi_info(&WiFi);
+		#endif
+		if (!mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
+			DEBUG_LOG("mqtt_connect_server() FAILED");
+			g_wifi_mqtt_working = false;
+		}
+		if (g_wifi_mqtt_working) {
+			if (!mqtt_send_topic(g_wifi_settings.mqtt_topic, g_wifi_settings.mqtt_value)) {
+				DEBUG_LOG("mqtt_send_topic(main) FAILED");
+				g_wifi_mqtt_working = false;
+			}
+		}
+		if (g_wifi_mqtt_working) {
+			if (autodiscover_mqtt) {
+				mqtt_send_autodiscover(&g_wifi_settings);
+				mqtt_send_network_info(&WiFi, &g_wifi_settings);
+			}
+			mqtt_send_device_state(&g_wifi_settings);
+		}
+	}
+	#ifdef DEBUG_MODE
+	Serial.print("Result: ");
+	if (g_wifi_mqtt_working) Serial.println("OK"); else Serial.println("FAILED");
 
-  Serial.println();
-  Serial.print("Duration: "); 
-  Serial.print((millis()-g_start_millis)); 
-  Serial.println(" ms");
-  #endif
-  DEBUG_LOG("\n## setup() complete");
+	Serial.println();
+	Serial.print("Duration: ");
+	Serial.print((millis()-g_start_millis));
+	Serial.println(" ms");
+	#endif
+	DEBUG_LOG("\n## setup() complete");
 }
 
 
@@ -133,59 +133,59 @@ void setup() {
  *  4. Go into deep sleep
  */
 void loop() {
-  DEBUG_LOG("\n#  loop()");
+	DEBUG_LOG("\n#  loop()");
 
-  #ifdef DEBUG_AP_MODE
-  bool res = enable_ap_mode(&g_wifi_settings);
-  if (res) run_ap_mode(&g_wifi_settings); // reboots afterwards
-  #endif
+	#ifdef DEBUG_AP_MODE
+	bool res = enable_ap_mode(&g_wifi_settings);
+	if (res) run_ap_mode(&g_wifi_settings); // reboots afterwards
+	#endif
 
-  #ifndef DEBUG_MODE
-  if (g_wifi_mqtt_working) {
-    // @ ca 3s
-    for (int i=0; i<1500/100; i++) {
-      digitalWrite(LED_PIN, ((i%2)==0)?LOW:HIGH); delay(100);
-    }
-    // @ ca 5s
-    digitalWrite(LED_PIN, HIGH); // LED off
-    digitalWrite(NOTIFY_PIN, LOW); // should power down
-    delay(2000); // wait a little; @ ca 7s
-    // if still here, rebuild it all
-    digitalWrite(LED_PIN, LOW); // LED on
-    digitalWrite(NOTIFY_PIN, HIGH); // keep power up now
-    delay(100);
-    // disconnect MQTT, reconnect Wifi, cache state, do autodiscovery
-    mqtt_disconnect();
-    bool res = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
-    if (res) {
-      save_settings_to_flash(&g_wifi_settings);
-      if (mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
-        mqtt_send_network_info(&WiFi, &g_wifi_settings);
-        mqtt_send_autodiscover(&g_wifi_settings);
-      }
-    }
-    // complete, @ ca 12s
-    digitalWrite(LED_PIN, HIGH); // LED off
-    delay(200); // wait a little
-    digitalWrite(NOTIFY_PIN, LOW); // power down again
-  }
-  // is anyone still pushing the button? start AP mode.
-  // @ ca 15s, or 3s after first start
-  digitalWrite(NOTIFY_PIN, HIGH); // power up
-  bool res = enable_ap_mode(&g_wifi_settings);
-  if (res) run_ap_mode(&g_wifi_settings); 
-  // reboots afterwards
-  #endif
+	#ifndef DEBUG_MODE
+	if (g_wifi_mqtt_working) {
+		// @ ca 3s
+		for (int i=0; i<1500/100; i++) {
+			digitalWrite(LED_PIN, ((i%2)==0)?LOW:HIGH); delay(100);
+		}
+		// @ ca 5s
+		digitalWrite(LED_PIN, HIGH); // LED off
+		digitalWrite(NOTIFY_PIN, LOW); // should power down
+		delay(2000); // wait a little; @ ca 7s
+		// if still here, rebuild it all
+		digitalWrite(LED_PIN, LOW); // LED on
+		digitalWrite(NOTIFY_PIN, HIGH); // keep power up now
+		delay(100);
+		// disconnect MQTT, reconnect Wifi, cache state, do autodiscovery
+		mqtt_disconnect();
+		bool res = wifi_try_slow_connect(&g_wifi_settings, &WiFi);
+		if (res) {
+			save_settings_to_flash(&g_wifi_settings);
+			if (mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
+				mqtt_send_network_info(&WiFi, &g_wifi_settings);
+				mqtt_send_autodiscover(&g_wifi_settings);
+			}
+		}
+		// complete, @ ca 12s
+		digitalWrite(LED_PIN, HIGH); // LED off
+		delay(200); // wait a little
+		digitalWrite(NOTIFY_PIN, LOW); // power down again
+	}
+	// is anyone still pushing the button? start AP mode.
+	// @ ca 15s, or 3s after first start
+	digitalWrite(NOTIFY_PIN, HIGH); // power up
+	bool res = enable_ap_mode(&g_wifi_settings);
+	if (res) run_ap_mode(&g_wifi_settings);
+	// reboots afterwards
+	#endif
 
-  #ifdef DEBUG_MODE
-  countdown(4);
-  #endif
+	#ifdef DEBUG_MODE
+	countdown(4);
+	#endif
 
-  DEBUG_LOG("ESP.restart() ...");
-  ESP.restart(); ESP.reset();
-  DEBUG_LOG("... Restart & reset failed ... let's sleep");
-  ESP.deepSleep(30e6); 
-  // never does second loop
+	DEBUG_LOG("ESP.restart() ...");
+	ESP.restart(); ESP.reset();
+	DEBUG_LOG("... Restart & reset failed ... let's sleep");
+	ESP.deepSleep(30e6);
+	// never does second loop
 }
 
 
@@ -194,15 +194,15 @@ void loop() {
 
 /* Waits a bit and blinks at 1Hz, to show we've done something */
 void countdown(int secs) {
-  DEBUG_LOG("countdown()");
+	DEBUG_LOG("countdown()");
 
-  pinMode(LED_PIN, OUTPUT);
-  for (int i=secs*2; i>=0; i--) {
-    #ifdef DEBUG_MODE
-    if (i%2==0) { Serial.print(i/2); Serial.print(" "); }
-    #endif
-    digitalWrite(LED_PIN, ((i%2)==0)?LOW:HIGH);
-    delay(500);
-  }
-  DEBUG_LOG("");
+	pinMode(LED_PIN, OUTPUT);
+	for (int i=secs*2; i>=0; i--) {
+		#ifdef DEBUG_MODE
+		if (i%2==0) { Serial.print(i/2); Serial.print(" "); }
+		#endif
+		digitalWrite(LED_PIN, ((i%2)==0)?LOW:HIGH);
+		delay(500);
+	}
+	DEBUG_LOG("");
 }
