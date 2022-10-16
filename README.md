@@ -47,10 +47,8 @@ Part of what makes the wifi connection to the AP slow is getting the BSSID of th
 
 * add hardware schematic, circuit board
 * confirm timings of individual steps
-* escape MQTT JSON strings properly
-* escape MQTT topic, value
 * double-check char-array sizes
 
 # FYI
 
-* OTA not possible: Flash usage > 50% of 500MB storage
+* OTA not possible on 500MB devices: Flash usage > 250MB
