@@ -42,12 +42,16 @@ extern unsigned long g_start_millis;
 bool mqtt_connect_server(WiFiClient *wclient, WIFI_SETTINGS_T *data) {
     DEBUG_LOG("mqtt_connect_server()");
     if (g_mqtt_connected) return true;
+    if (!data->mqtt_host_ip) {
+        DEBUG_LOG("No MQTT IP known");
+        return false; // no MQTT hostname
+    }
 
     // Pre-connect to IP address
     #define PRECONNECT_TIMEOUT 5000
     uint32_t timeout = millis() + PRECONNECT_TIMEOUT;
-    while ((!wclient->connect(
-        data->mqtt_host_ip, data->mqtt_host_port)) && (millis()<timeout)) { delay(50); }
+    while ((!wclient->connect(data->mqtt_host_ip, data->mqtt_host_port)) 
+            && (millis()<timeout)) { delay(50); }
     if (!wclient->connected()) {
         DEBUG_LOG("Connect to MQTT IP-address FAILED");
         return false; // can't connect to IP
