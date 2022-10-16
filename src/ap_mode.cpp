@@ -270,7 +270,8 @@ void _handle_form() {
 			R"rawliteral(<!DOCTYPE HTML><html><head><meta charset="utf-8" />
 			<title>Rebooting</title>
 			<meta name="viewport" content="width=device-width, initial-scale=1" />
-			</head><body><h1>Rebooting ...</h1><script>history.pushState({},"","/");</script>
+			</head><body><h1>Rebooting ...</h1><p><a href="/">Reload</a></p>
+			<script>history.pushState({},"","/");</script>
 			</body></html>)rawliteral" );
 
 		delay(500);
