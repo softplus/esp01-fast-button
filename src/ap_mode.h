@@ -24,7 +24,6 @@
 #define AP_MODE_H
 
 #include "settings.h"
-#include <ESP8266WiFi.h>
 
 bool enable_ap_mode(WIFI_SETTINGS_T *data);
 void run_ap_mode(WIFI_SETTINGS_T *data);
