@@ -256,7 +256,7 @@ void _handle_form() {
     if (changes) {
         // save to flash
         DEBUG_LOG("Found changes, saving to flash.");
-        _data->force_slow = 1;
+        _data->wifi_channel = 0; // forces traditional wifi connect next
         save_settings_to_flash(_data);
     }
 
