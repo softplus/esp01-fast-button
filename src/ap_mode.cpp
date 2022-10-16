@@ -181,7 +181,8 @@ void _handle_root() {
 	// page footer start
 	local_server.sendContent( R"rawliteral(
 		<footer>
-		<p>(c) <a href="https://johnmu.com/">johnmu</a> -
+		<p>(c) <a href="https://johnmu.com/">johnmu</a> /
+		<a href="https://github.com/softplus/esp01-fast-button">github</a> -
 		)rawliteral" );
 
 	local_server.sendContent("Built ");
