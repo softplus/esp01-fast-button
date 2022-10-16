@@ -23,6 +23,7 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include <DNSServer.h>
 
 #include "ap_mode.h"
 #include "main.h"
@@ -31,6 +32,7 @@
 
 #define AP_TIMEOUT_SECS 5*60
 static ESP8266WebServer local_server(80);
+static DNSServer local_dns_server;
 static uint32_t ap_timeout;
 static uint32_t led_time_next;
 static bool led_status;
@@ -57,6 +59,11 @@ bool enable_ap_mode(WIFI_SETTINGS_T *data) {
 		#ifdef DEBUG_MODE
 		Serial.print("AP: "); Serial.println(ap_name);
 		#endif
+
+		// set up DNS for captive portal
+		DEBUG_LOG("Starting DNS");
+		local_dns_server.setErrorReplyCode(DNSReplyCode::NoError);
+		local_dns_server.start(53, "*", WiFi.softAPIP()); // always send our IP
 	}
 	return res;
 }
@@ -91,12 +98,30 @@ void run_ap_mode(WIFI_SETTINGS_T *data) {
 	while (millis() < ap_timeout) {
 		_handle_led();
 		local_server.handleClient();
-		delay(50);
+		local_dns_server.processNextRequest();
+		delay(10);
 	}
 	DEBUG_LOG("Rebooting after timeout.");
 	delay(500);
 	ESP.restart(); ESP.reset();
 }
+
+
+/* Check if request is for our IP address, otherwise assume it's a redirect
+ * to the captive portal.
+ */
+bool _check_captive_portal() {
+	if (local_server.hostHeader() != local_server.client().localIP().toString()) {
+		DEBUG_LOG("_check_captive_portal(): Redirecting");
+		local_server.sendHeader("Location", 
+			String("http://") + local_server.client().localIP().toString(), true);
+		local_server.send(302, "text/plain", "");   
+		local_server.client().stop(); 
+		return true;
+	}
+	return false;
+}
+
 
 /* show string in HTML escaped form; ignore entities, escape all non-alphanum
  */
@@ -139,13 +164,15 @@ void _show_field(char const *label, char const *id, char *value) {
  */
 void _handle_root() {
 	DEBUG_LOG("_handle_root()");
+	if (_check_captive_portal()) return; // we're redirecting
 
 	// header
 	local_server.sendContent("HTTP/1.1 200 OK\r\n"
 		"Content-Type: text/html\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
-		"Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept\r\n"           // TEXT MIME type
-		"\r\n");
+		"Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept\r\n"
+		"Pragma: no-cache\r\n"
+  		"Expires: -1\r\n\r\n");
 
 	// page start
 	local_server.sendContent( R"rawliteral(<!DOCTYPE HTML><html><head>
@@ -212,6 +239,7 @@ void _handle_root() {
 	local_server.sendContent( R"rawliteral(
 		</footer>
 		</body></html>)rawliteral" );
+	local_server.client().stop(); 
 }
 
 
@@ -274,6 +302,7 @@ void _handle_form() {
 			</head><body><h1>Rebooting ...</h1><p><a href="/">Reload</a></p>
 			<script>history.pushState({},"","/");</script>
 			</body></html>)rawliteral" );
+		local_server.client().stop(); 
 
 		delay(500);
 		ESP.restart(); ESP.reset();
@@ -282,11 +311,14 @@ void _handle_form() {
 	// return to homepage
 	local_server.sendContent("HTTP/1.1 302 Temporary redirect\r\n"
 		"Location: /\r\n\r\n");
+	local_server.client().stop(); 
 }
 
 
 /* Handle the 404 page
  */
 void _handle_404() {
+	if (_check_captive_portal()) return; // we're redirecting
 	local_server.send(404, "text/html", "404 Not found");
+	local_server.client().stop(); 
 }
