@@ -51,6 +51,8 @@ For direct access, use http://192.168.4.1/ .
 
 The name of the access point depends on the device's MAC address, it looks something like "AP_AA1122".
 
+![](docs/settings.png)
+
 The homepage of the access point allows configuration of wifi name, authentication, MQTT server settings, and MQTT request to send upon click.
 It does not check the wifi settings, but if they're wrong, it'll revert to the AP mode again.
 
