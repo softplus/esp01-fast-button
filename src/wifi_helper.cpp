@@ -72,6 +72,8 @@ bool wifi_try_fast_connect(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w) {
   DEBUG_LOG("wifi_try_fast_connect()");
 
   #define FAST_TIMEOUT 5000 // ms
+  if (!data->ip_address || !data->wifi_channel) return false;
+
   // try fast connect
   w->config(IPAddress(data->ip_address),
     IPAddress(data->ip_gateway), IPAddress(data->ip_mask), 
