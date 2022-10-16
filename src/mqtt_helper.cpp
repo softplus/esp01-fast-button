@@ -87,21 +87,55 @@ bool mqtt_send_topic(char *topic, char *value) {
 }
 
 
+/* Escape this string as a JSON value
+ *   Backspace -> \b
+ *   Form feed -> \f
+ *   Newline -> \n
+ *   Carriage return -> \r
+ *   Tab -> \t
+ *   Double quote -> \"
+ *   Backslash -> \\
+ */
+void _escape_json_value(char *dest, int size, char *input) {
+	char *in_ptr = input;
+	char *out_ptr = dest;
+	while (*in_ptr) {
+		if (strchr("\"\\\b\f\n\r\t", *in_ptr) != NULL) {
+			*out_ptr = '\\'; out_ptr++;
+		}
+		*out_ptr = *in_ptr;
+		if (*out_ptr=='\b') *out_ptr='b'; // special cases
+		if (*out_ptr=='\f') *out_ptr='f';
+		if (*out_ptr=='\n') *out_ptr='n';
+		if (*out_ptr=='\r') *out_ptr='r';
+		if (*out_ptr=='\t') *out_ptr='t';
+		out_ptr++; in_ptr++;
+		if (out_ptr - dest>size-2) break;
+	}
+	*out_ptr=0;
+}
+
+
 /* Send MQTT autodiscover topic to home-assistant
  */
 bool mqtt_send_autodiscover(WIFI_SETTINGS_T *data) {
 	DEBUG_LOG("mqtt_send_autodiscover()");
 	if (!data->mqtt_homeassistant_topic[0]) return true;
 
-	char buf_topic[200], buf_value[400];
+	char buf_topic[200], buf_value[500];
 	char state_topic[100];
 	snprintf(state_topic, sizeof(state_topic), "softplus/%s/state",
 	data->mqtt_client_id);
 
+	char state_topic_safe[100];
+	_escape_json_value(state_topic_safe, sizeof(state_topic_safe), state_topic);
+	char client_id_safe[50];
+	_escape_json_value(client_id_safe, sizeof(client_id_safe), data->mqtt_client_id);
+
 	snprintf(buf_value, sizeof(buf_value),
 		"{\"stat_t\":\"%s\",\"name\":\"%s\",\"off_delay\":30,\"dev\":{"
 		"\"name\":\"fastbutton\",\"mdl\":\"%s\",\"ids\":\"%s\"}}",
-		state_topic, data->mqtt_client_id, data->mqtt_client_id, data->mqtt_client_id);
+		state_topic_safe, client_id_safe, client_id_safe, client_id_safe);
 
 	snprintf(buf_topic, sizeof(buf_topic),
 		"%s/binary_sensor/%s/config",
