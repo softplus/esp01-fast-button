@@ -1,7 +1,7 @@
 # esp01-fast-button
 
-Code sample for a basic ESP-01 Wifi-button, showing how to cache the wifi connection data to achieve a faster connection to the access point.
-Regularly connects to wifi and sends MQTT requests within 1200ms.
+ESP-01 Wifi-button, using MQTT to trigger, using fast wifi-connection tricks.
+Regularly connects to wifi and sends MQTT requests within 1300ms.
 
 [MIT license](LICENSE) / (c) 2022 [John Mueller](https://johnmu.com/)
 
