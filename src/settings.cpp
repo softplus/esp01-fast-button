@@ -110,20 +110,22 @@ void build_settings_from_wifi(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w) {
     data->ip_mask = w->subnetMask();
     data->ip_dns1 = w->dnsIP(0);
     data->ip_dns2 = w->dnsIP(1);
-    //strncpy(data->wifi_ssid, WIFI_SSID, sizeof(data->wifi_ssid));
-    //strncpy(data->wifi_auth, WIFI_AUTH, sizeof(data->wifi_auth));
     memcpy(data->wifi_bssid, w->BSSID(), 6);
     data->wifi_channel = w->channel();
     // look up IP for MQTT server
-    IPAddress mqtt_ip;
-    int err = w->hostByName(data->mqtt_host_str, mqtt_ip);
-    if (err==0) { 
-        data->mqtt_host_ip = 0;
-        #ifdef DEBUG_MODE
-        Serial.print(" ** Can't resolve host: "); Serial.println(data->mqtt_host_str); 
-        #endif
+    if (data->mqtt_host_str[0]) {
+        IPAddress mqtt_ip;
+        int err = w->hostByName(data->mqtt_host_str, mqtt_ip);
+        if (err==0) { 
+            data->mqtt_host_ip = 0;
+            #ifdef DEBUG_MODE
+            Serial.print(" ** Can't resolve host: "); Serial.println(data->mqtt_host_str); 
+            #endif
+        } else {
+            data->mqtt_host_ip = (uint32_t)mqtt_ip;
+        }
     } else {
-        data->mqtt_host_ip = (uint32_t)mqtt_ip;
+        data->mqtt_host_ip = 0;
     }
 }
 
