@@ -53,6 +53,7 @@ void setup() {
 	digitalWrite(NOTIFY_PIN, HIGH);
 	#endif
 	WiFi.setAutoConnect(false);
+	WiFi.persistent(true);
 
 	pinMode(LED_PIN, OUTPUT);
 	digitalWrite(LED_PIN, LOW); // LED on
@@ -61,6 +62,7 @@ void setup() {
 	Serial.begin(115200);
 	Serial.print("Starting soon...");
 	countdown(4);
+	uint32_t finish_wifi_millis = 0;
 	#endif
 	g_start_millis = millis();
 
@@ -89,7 +91,10 @@ void setup() {
 	#ifdef DEBUG_AUTODISCOVER
 	autodiscover_mqtt = true;
 	#endif
-
+	#ifdef DEBUG_MODE
+	finish_wifi_millis = millis();
+	#endif
+	
 	DEBUG_LOG("\n## MQTT:");
 	if (g_wifi_mqtt_working) {
 		#ifdef DEBUG_MODE
@@ -118,7 +123,10 @@ void setup() {
 	if (g_wifi_mqtt_working) Serial.println("OK"); else Serial.println("FAILED");
 
 	Serial.println();
-	Serial.print("Duration: ");
+	Serial.print("Time Wifi: ");
+	Serial.print((finish_wifi_millis-g_start_millis));
+	Serial.println(" ms");
+	Serial.print("Time total: ");
 	Serial.print((millis()-g_start_millis));
 	Serial.println(" ms");
 	#endif

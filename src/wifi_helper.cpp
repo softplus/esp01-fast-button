@@ -74,16 +74,26 @@ bool wifi_try_fast_connect(WIFI_SETTINGS_T *data, ESP8266WiFiClass *w) {
 	#define FAST_TIMEOUT 5000 // ms
 	if (!data->ip_address || !data->wifi_channel) return false;
 
+	// Variations. Use WiFi.mode(..)
+	//WiFi.enableSTA(true);
+	WiFi.mode(WIFI_STA);
+    //WiFi.setAutoReconnect(true);
+
 	// try fast connect
 	w->config(IPAddress(data->ip_address),
 		IPAddress(data->ip_gateway), IPAddress(data->ip_mask),
 		IPAddress(data->ip_dns1), IPAddress(data->ip_dns2));
-	w->begin(data->wifi_ssid, data->wifi_auth, data->wifi_channel, data->wifi_bssid);
+	w->begin(data->wifi_ssid, data->wifi_auth, data->wifi_channel, data->wifi_bssid, true);
 	// note: connection is actually not yet made
 	w->reconnect();
 	// wait for connection, or time out
 	uint32_t timeout = millis() + FAST_TIMEOUT;
-	while ((w->status() != WL_CONNECTED) && (millis()<timeout)) { delay(5); }
+	while ((w->status() != WL_CONNECTED) && (millis()<timeout)) { 
+		#ifdef DEBUG_MODE
+		Serial.print("."); 
+		#endif
+		delay(20); 
+	}
 	// should be good now, or timed out
 	return (w->status() == WL_CONNECTED);
 }

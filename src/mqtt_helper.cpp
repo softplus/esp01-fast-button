@@ -177,7 +177,7 @@ bool mqtt_send_device_state(WIFI_SETTINGS_T *data) {
 	result = mqtt_send_topic(buf_topic, buf_value);
 	if (!result) return false;
 
-	snprintf(buf_topic, sizeof(buf_topic), "softplus/%s/runtime", data->mqtt_client_id);
+	snprintf(buf_topic, sizeof(buf_topic), "softplus/%s/time_connect", data->mqtt_client_id);
 	snprintf(buf_value, sizeof(buf_value), "%lu", millis()-g_start_millis);
 	return mqtt_send_topic(buf_topic, buf_value);
 }
