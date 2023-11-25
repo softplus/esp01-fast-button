@@ -50,7 +50,8 @@ struct WIFI_SETTINGS_T { // size: 644 bytes
 	char mqtt_value[100];
 	char mqtt_homeassistant_topic[100];
 	uint8_t version;
-	char filler[380]; // not used
+	char rest_url[100];
+	char filler[280]; // not used
 };
 
 void save_settings_to_flash(WIFI_SETTINGS_T *data);

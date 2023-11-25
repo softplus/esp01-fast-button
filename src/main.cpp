@@ -29,6 +29,7 @@
 #include "wifi_helper.h"
 #include "mqtt_helper.h"
 #include "ap_mode.h"
+#include <ESP8266HTTPClient.h>
 
 WIFI_SETTINGS_T g_wifi_settings;
 bool g_wifi_mqtt_working;
@@ -100,23 +101,44 @@ void setup() {
 		#ifdef DEBUG_MODE
 		show_wifi_info(&WiFi);
 		#endif
-		if (!mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
-			DEBUG_LOG("mqtt_connect_server() FAILED");
-			g_wifi_mqtt_working = false;
-		}
-		if (g_wifi_mqtt_working) {
-			if (!mqtt_send_topic(g_wifi_settings.mqtt_topic, g_wifi_settings.mqtt_value)) {
-				DEBUG_LOG("mqtt_send_topic(main) FAILED");
+		#ifndef DEBUG_SKIP_MQTT
+		// check if we have a MQTT hostname
+		if (g_wifi_settings.mqtt_host_str[0]) {
+			if (!mqtt_connect_server(&g_wclient, &g_wifi_settings)) {
+				DEBUG_LOG("mqtt_connect_server() FAILED");
 				g_wifi_mqtt_working = false;
 			}
-		}
-		if (g_wifi_mqtt_working) {
-			if (autodiscover_mqtt) {
-				mqtt_send_autodiscover(&g_wifi_settings);
-				mqtt_send_network_info(&WiFi, &g_wifi_settings);
+			if (g_wifi_mqtt_working) {
+				if (!mqtt_send_topic(g_wifi_settings.mqtt_topic, g_wifi_settings.mqtt_value)) {
+					DEBUG_LOG("mqtt_send_topic(main) FAILED");
+					g_wifi_mqtt_working = false;
+				}
 			}
-			mqtt_send_device_state(&g_wifi_settings);
+			if (g_wifi_mqtt_working) {
+				if (autodiscover_mqtt) {
+					mqtt_send_autodiscover(&g_wifi_settings);
+					mqtt_send_network_info(&WiFi, &g_wifi_settings);
+				}
+				mqtt_send_device_state(&g_wifi_settings);
+			}
 		}
+		#endif
+		#ifndef DEBUG_SKIP_REST
+			// check if we have a REST URL
+			if (g_wifi_settings.rest_url[0]) {
+				WiFiClient client;
+				HTTPClient http;
+				DEBUG_LOG("Requesting REST URL: ");
+				Serial.println(g_wifi_settings.rest_url);
+
+				http.begin(client, g_wifi_settings.rest_url);
+		    	// Send HTTP GET request
+      			int http_response_code = http.GET();
+				Serial.println(http_response_code);
+				// ignore response code, we're done 
+			}
+		#endif
+
 	}
 	#ifdef DEBUG_MODE
 	Serial.print("Result: ");

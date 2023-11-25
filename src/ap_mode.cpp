@@ -187,7 +187,7 @@ void _handle_root() {
 	_show_field("Wifi SSID", "wifi_ssid", _data->wifi_ssid);
 	_show_field("Wifi Password", "wifi_auth", _data->wifi_auth);
 
-	_show_field("MQTT Host", "mqtt_host_str", _data->mqtt_host_str);
+	_show_field("MQTT Host (or empty)", "mqtt_host_str", _data->mqtt_host_str);
 	snprintf(buf, sizeof(buf), "%i", _data->mqtt_host_port);
 	_show_field("MQTT Port", "mqtt_host_port", buf);
 	_show_field("MQTT Username", "mqtt_user", _data->mqtt_user);
@@ -197,6 +197,8 @@ void _handle_root() {
 	_show_field("MQTT Topic", "mqtt_topic", _data->mqtt_topic);
 	_show_field("MQTT Topic value", "mqtt_value", _data->mqtt_value);
 	_show_field("MQTT Home Assistant Topic", "mqtt_ha", _data->mqtt_homeassistant_topic);
+
+	_show_field("REST URL (or empty)", "rest_url", _data->rest_url);
 
 	// below form
 	local_server.sendContent( R"rawliteral(
@@ -281,6 +283,8 @@ void _handle_form() {
 	changes += _read_field("mqtt_topic", _data->mqtt_topic, sizeof(_data->mqtt_topic));
 	changes += _read_field("mqtt_value", _data->mqtt_value, sizeof(_data->mqtt_value));
 	changes += _read_field("mqtt_ha", _data->mqtt_homeassistant_topic, sizeof(_data->mqtt_homeassistant_topic));
+
+	changes += _read_field("rest_url", _data->rest_url, sizeof(_data->rest_url));
 
 	if (changes) {
 		// save to flash

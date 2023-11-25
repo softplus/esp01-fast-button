@@ -27,6 +27,8 @@
 //#define DEBUG_MODE
 //#define DEBUG_AUTODISCOVER
 //#define DEBUG_AP_MODE
+//#define DEBUG_SKIP_MQTT
+//#define DEBUG_SKIP_REST
 
 // pin definitions for hardware
 #define LED_PIN 2
