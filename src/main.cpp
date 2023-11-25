@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2022-2022 John Mueller
+	Copyright (c) 2022-2023 John Mueller
 
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
@@ -129,13 +129,17 @@ void setup() {
 				WiFiClient client;
 				HTTPClient http;
 				DEBUG_LOG("Requesting REST URL: ");
+				#ifdef DEBUG_MODE
 				Serial.println(g_wifi_settings.rest_url);
+				#endif
 
 				http.begin(client, g_wifi_settings.rest_url);
 		    	// Send HTTP GET request
       			int http_response_code = http.GET();
-				Serial.println(http_response_code);
 				// ignore response code, we're done 
+				#ifdef DEBUG_MODE
+				Serial.println(http_response_code);
+				#endif
 			}
 		#endif
 
